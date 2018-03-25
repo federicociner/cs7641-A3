@@ -2,6 +2,21 @@ import os
 import numpy as np
 from collections import Counter
 from sklearn.metrics import accuracy_score
+from sklearn.utils.class_weight import compute_sample_weight
+
+
+def save_array(array, filename, sep=',', subdir='data'):
+    """Saves a Numpy array as a delimited text file.
+
+    Args:
+        array (Numpy.Array): Input array.
+        filename (str): Output file name.
+        sep (str): Delimiter.
+        subdir (str): Parent directory path for output file.
+
+    """
+    tdir = os.path.join(os.getcwd(), os.pardir, subdir, filename)
+    np.savetxt(fname=tdir, X=array, delimiter=sep, fmt='%.20f')
 
 
 def save_dataset(df, filename, sep=',', subdir='data', header=True):
@@ -36,6 +51,21 @@ def get_abspath(filename, filepath):
     return fullpath
 
 
+def balanced_accuracy(labels, predictions):
+    """Modifies the standard accuracy scoring function to account for
+    potential imbalances in class distributions.
+
+    Args:
+        labels (numpy.array): Actual class labels.
+        predictions (numpy.array): Predicted class labels.
+    Returns:
+        Modified accuracy scoring function.
+
+    """
+    weights = compute_sample_weight('balanced', labels)
+    return accuracy_score(labels, predictions, sample_weight=weights)
+
+
 def cluster_acc(Y, clusterY):
     """ Calculates accuracy of labels in each cluster by comparing to the
     actual Y labels.
@@ -55,4 +85,4 @@ def cluster_acc(Y, clusterY):
         target = Counter(sub).most_common(1)[0][0]
         pred[mask] = target
 
-    return accuracy_score(Y, pred)
+    return balanced_accuracy(Y, pred)

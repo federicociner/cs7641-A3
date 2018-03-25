@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from helpers import cluster_acc, get_abspath
+from helpers import cluster_acc, get_abspath, save_dataset
 from sklearn.metrics import silhouette_score
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
@@ -147,7 +147,8 @@ def generate_component_plots(name):
     # change layout size, font size and width between subplots
     fig.tight_layout()
     for ax in fig.axes:
-        for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+        ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
+        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
             item.set_fontsize(8)
     plt.subplots_adjust(wspace=0.3)
 
@@ -199,7 +200,8 @@ def generate_validation_plots(name):
     # change layout size, font size and width between subplots
     fig.tight_layout()
     for ax in fig.axes:
-        for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+        ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
+        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
             item.set_fontsize(8)
     plt.subplots_adjust(wspace=0.3)
 
@@ -210,11 +212,92 @@ def generate_validation_plots(name):
     plt.clf()
 
 
-def generate_cluster_plots():
-    """Visualizes clusters using t-SNE to decompose to 2D for both datasets.
+def generate_cluster_data(X, y, name, km_k, gmm_k, perplexity=30):
+    """Generates 2D dataset that contains cluster labels for K-Means and GMM,
+    as well as the class labels for the given dataset.
+
+    Args:
+        X (Numpy.Array): Attributes.
+        y (Numpy.Array): Labels.
+        name (str): Dataset name.
+        perplexity (int): Perplexity parameter for t-SNE.
+        km_k (int): Number of clusters for K-Means.
+        gmm_k (int): Number of components for GMM.
 
     """
-    print 'hi'
+    # generate 2D X dataset
+    X2D = TSNE(n_iter=5000, perplexity=perplexity).fit_transform(X)
+
+    # get cluster labels using best k
+    km = KMeans(random_state=0).set_params(n_clusters=km_k)
+    gmm = GMM(random_state=0).set_params(n_components=gmm_k)
+    km_cl = np.atleast_2d(km.fit(X2D).labels_).T
+    gmm_cl = np.atleast_2d(gmm.fit(X2D).predict(X2D)).T
+    y = np.atleast_2d(y).T
+
+    # create concatenated dataset
+    cols = ['x1', 'x2', 'km', 'gmm', 'class']
+    df = pd.DataFrame(np.hstack((X2D, km_cl, gmm_cl, y)), columns=cols)
+
+    # save as CSV
+    filename = '{}_2D.csv'.format(name)
+    save_dataset(df, filename, sep=',', subdir='data/clustering', header=True)
+
+
+def generate_cluster_plots(df, name):
+    """Visualizes clusters using pre-processed 2D dataset.
+
+    Args:
+        df (Pandas.DataFrame): Dataset containing attributes and labels.
+        name (str): Dataset name.
+
+    """
+    # get cols
+    x1 = df['x1']
+    x2 = df['x2']
+    km = df['km']
+    gmm = df['gmm']
+    c = df['class']
+
+    # plot cluster scatter plots
+    fig, (ax1, ax2, ax3) = plt.subplots(nrows=1, ncols=3, figsize=(12, 3))
+    ax1.scatter(x1, x2, marker='x', s=20, c=km, cmap='gist_rainbow')
+    ax1.set_title('K-Means Clusters ({})'.format(name))
+    ax1.set_ylabel('x1')
+    ax1.set_xlabel('x2')
+    ax1.grid(color='grey', linestyle='dotted')
+
+    ax2.scatter(x1, x2, marker='x', s=20, c=gmm, cmap='gist_rainbow')
+    ax2.set_title('GMM Clusters ({})'.format(name))
+    ax2.set_ylabel('x1')
+    ax2.set_xlabel('x2')
+    ax2.grid(color='grey', linestyle='dotted')
+
+    # change color map depending on dataset
+    cmap = None
+    if name == 'winequality':
+        cmap = 'hsv'
+    else:
+        cmap = 'summer'
+    ax3.scatter(x1, x2, marker='o', s=20, c=c, cmap=cmap)
+    ax3.set_title('Class Labels ({})'.format(name))
+    ax3.set_ylabel('x1')
+    ax3.set_xlabel('x2')
+    ax3.grid(color='grey', linestyle='dotted')
+
+    # change layout size, font size and width between subplots
+    fig.tight_layout()
+    for ax in fig.axes:
+        ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
+        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
+            item.set_fontsize(8)
+    plt.subplots_adjust(wspace=0.3)
+
+    # save figure
+    plotdir = 'plots/clustering'
+    plotpath = get_abspath('{}_clusters.png'.format(name), plotdir)
+    plt.savefig(plotpath)
+    plt.clf()
 
 
 def main():
@@ -227,15 +310,19 @@ def main():
     seismic = np.loadtxt(seismicpath, delimiter=',')
 
     # split data into X and y
-    wineX = wine[:, :-1]
-    wineY = wine[:, -1]
-    seismicX = seismic[:, :-1]
-    seismicY = seismic[:, -1]
+    wX = wine[:, :-1]
+    wY = wine[:, -1]
+    sX = seismic[:, :-1]
+    sY = seismic[:, -1]
 
     # run clustering experiments
     clusters = [2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 18, 20, 25, 30, 45, 80, 120]
-    clustering_experiment(wineX, wineY, 'winequality', clusters)
-    clustering_experiment(seismicX, seismicY, 'seismic-bumps', clusters)
+    clustering_experiment(wX, wY, 'winequality', clusters)
+    clustering_experiment(sX, sY, 'seismic-bumps', clusters)
+
+    # generate 2D data for cluster visualization
+    # generate_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12)
+    # generate_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15)
 
     # generate component plots (metrics to choose size of k)
     generate_component_plots(name='winequality')
@@ -244,6 +331,14 @@ def main():
     # generate validation plots (relative performance of clustering)
     generate_validation_plots(name='winequality')
     generate_validation_plots(name='seismic-bumps')
+
+    # generate validation plots (relative performance of clustering)
+    datadir = 'data/clustering'
+    df_wine = pd.read_csv(get_abspath('winequality_2D.csv', datadir))
+    df_seismic = pd.read_csv(get_abspath('seismic-bumps_2D.csv', datadir))
+    generate_cluster_plots(df_wine, name='winequality')
+    generate_cluster_plots(df_seismic, name='seismic-bumps')
+
 
 if __name__ == '__main__':
     main()

@@ -1,24 +1,9 @@
 from scipy.io import arff
-from helpers import get_abspath, save_dataset
+from helpers import get_abspath, save_dataset, save_array
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np
-import os
-
-
-def save_array(array, filename, sep=',', subdir='data'):
-    """Saves a Numpy array as a delimited text file.
-
-    Args:
-        array (Numpy.Array): Input array.
-        filename (str): Output file name.
-        sep (str): Delimiter.
-        subdir (str): Parent directory path for output file.
-
-    """
-    tdir = os.path.join(os.getcwd(), os.pardir, subdir, filename)
-    np.savetxt(fname=tdir, X=array, delimiter=sep, fmt='%.20f')
 
 
 def get_splits(X, y, dname, filepath='data/experiments'):
