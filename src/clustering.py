@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import seaborn
 
 
-def clustering_experiment(X, y, name, clusters):
+def clustering_experiment(X, y, name, clusters, rdir):
     """Generate results CSVs for given datasets using the K-Means and EM
     clustering algorithms.
 
@@ -22,6 +22,7 @@ def clustering_experiment(X, y, name, clusters):
         y (Numpy.Array): Labels.
         name (str): Dataset name.
         clusters (list[int]): List of k values.
+        rdir (str): Output directory.
 
     """
     sse = defaultdict(dict)  # sum of squared errors
@@ -43,10 +44,10 @@ def clustering_experiment(X, y, name, clusters):
         # calculate SSE, log-likelihood, accuracy, and adjusted mutual info
         sse[k][name] = km.score(X)
         logl[k][name] = gmm.score(X)
-        acc[k][name]['K-Means'] = cluster_acc(y, km.predict(X))
-        acc[k][name]['GMM'] = cluster_acc(y, gmm.predict(X))
-        adjmi[k][name]['K-Means'] = ami(y, km.predict(X))
-        adjmi[k][name]['GMM'] = ami(y, gmm.predict(X))
+        acc[k][name]['km'] = cluster_acc(y, km.predict(X))
+        acc[k][name]['gmm'] = cluster_acc(y, gmm.predict(X))
+        adjmi[k][name]['km'] = ami(y, km.predict(X))
+        adjmi[k][name]['gmm'] = ami(y, gmm.predict(X))
 
         # calculate silhouette score for K-Means
         km_silhouette = silhouette_score(X, km.predict(X))
@@ -57,54 +58,37 @@ def clustering_experiment(X, y, name, clusters):
 
     # generate output dataframes
     sse = (-pd.DataFrame(sse)).T
-    sse.rename(columns={name: 'SSE'}, inplace=True)
+    sse.rename(columns={name: 'sse'}, inplace=True)
     logl = pd.DataFrame(logl).T
-    logl.rename(columns={name: 'Log-likelihood'}, inplace=True)
+    logl.rename(columns={name: 'log-likelihood'}, inplace=True)
     bic = pd.DataFrame(bic).T
-    bic.rename(columns={name: 'BIC'}, inplace=True)
+    bic.rename(columns={name: 'bic'}, inplace=True)
     silhouette = pd.DataFrame(silhouette).T
-    silhouette.rename(columns={name: 'Silhouette Score'}, inplace=True)
+    silhouette.rename(columns={name: 'silhouette_score'}, inplace=True)
     acc = pd.Panel(acc)
+    acc = acc.loc[:, :, name].T.rename(
+        lambda x: '{}_acc'.format(x), axis='columns')
     adjmi = pd.Panel(adjmi)
-    outdir = 'results/clustering'
+    adjmi = adjmi.loc[:, :, name].T.rename(
+        lambda x: '{}_adjmi'.format(x), axis='columns')
 
-    # SSE
-    ssefile = get_abspath('{}_sse.csv'.format(name), outdir)
-    sse.to_csv(ssefile, index_label='k')
-
-    # Log-likelihood
-    loglfile = get_abspath('{}_logl.csv'.format(name), outdir)
-    logl.to_csv(loglfile, index_label='k')
-
-    # BIC
-    bicfile = get_abspath('{}_bic.csv'.format(name), outdir)
-    bic.to_csv(bicfile, index_label='k')
-
-    # Silhouette Score
-    silfile = get_abspath('{}_silhouette.csv'.format(name), outdir)
-    silhouette.to_csv(silfile, index_label='k')
-
-    # save accuracy results
-    accfile = get_abspath('{}_acc.csv'.format(name), outdir)
-    acc.loc[:, :, name].T.to_csv(accfile, index_label='k')
-
-    # save adjusted mutual info results
-    adjmifile = get_abspath('{}_adjmi.csv'.format(name), outdir)
-    adjmi.loc[:, :, name].T.to_csv(adjmifile, index_label='k')
+    # concatenate all results
+    dfs = (sse, silhouette, logl, bic, acc, adjmi)
+    metrics = pd.concat(dfs, axis=1)
+    resfile = get_abspath('{}_metrics.csv'.format(name), rdir)
+    metrics.to_csv(resfile, index_label='k')
 
 
-def generate_component_plots(name):
+def generate_component_plots(name, rdir, pdir):
     """Generates plots of result files for given dataset.
 
     Args:
         name (str): Dataset name.
+        rdir (str): Input file directory.
+        pdir (str): Output directory.
 
     """
-    resdir = 'results/clustering'
-    sse = pd.read_csv(get_abspath('{}_sse.csv'.format(name), resdir))
-    logl = pd.read_csv(get_abspath('{}_logl.csv'.format(name), resdir))
-    bic = pd.read_csv(get_abspath('{}_bic.csv'.format(name), resdir))
-    sil = pd.read_csv(get_abspath('{}_silhouette.csv'.format(name), resdir))
+    metrics = pd.read_csv(get_abspath('{}_metrics.csv'.format(name), rdir))
 
     # get figure and axes
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(nrows=1,
@@ -112,8 +96,8 @@ def generate_component_plots(name):
                                              figsize=(15, 3))
 
     # plot SSE for K-Means
-    k = sse['k']
-    metric = sse['SSE']
+    k = metrics['k']
+    metric = metrics['sse']
     ax1.plot(k, metric, marker='o', markersize=5, color='g')
     ax1.set_title('K-Means SSE ({})'.format(name))
     ax1.set_ylabel('Sum of squared error')
@@ -121,7 +105,7 @@ def generate_component_plots(name):
     ax1.grid(color='grey', linestyle='dotted')
 
     # plot Silhoutte Score for K-Means
-    metric = sil['Silhouette Score']
+    metric = metrics['silhouette_score']
     ax2.plot(k, metric, marker='o', markersize=5, color='b')
     ax2.set_title('K-Means Avg Silhouette Score ({})'.format(name))
     ax2.set_ylabel('Mean silhouette score')
@@ -129,7 +113,7 @@ def generate_component_plots(name):
     ax2.grid(color='grey', linestyle='dotted')
 
     # plot log-likelihood for EM
-    metric = logl['Log-likelihood']
+    metric = metrics['log-likelihood']
     ax3.plot(k, metric, marker='o', markersize=5, color='r')
     ax3.set_title('GMM Log-likelihood ({})'.format(name))
     ax3.set_ylabel('Log-likelihood')
@@ -137,7 +121,7 @@ def generate_component_plots(name):
     ax3.grid(color='grey', linestyle='dotted')
 
     # plot BIC for EM
-    metric = bic['BIC']
+    metric = metrics['bic']
     ax4.plot(k, metric, marker='o', markersize=5, color='k')
     ax4.set_title('GMM BIC ({})'.format(name))
     ax4.set_ylabel('BIC')
@@ -153,31 +137,31 @@ def generate_component_plots(name):
     plt.subplots_adjust(wspace=0.3)
 
     # save figure
-    plotdir = 'plots/clustering'
-    plotpath = get_abspath('{}_components.png'.format(name), plotdir)
+    plotpath = get_abspath('{}_components.png'.format(name), pdir)
     plt.savefig(plotpath)
     plt.clf()
 
 
-def generate_validation_plots(name):
+def generate_validation_plots(name, rdir, pdir):
     """Generates plots of validation metrics (accuracy, adjusted mutual info)
     for both datasets.
 
     Args:
         name (str): Dataset name.
+        rdir (str): Input file directory.
+        pdir (str): Output directory.
 
     """
     resdir = 'results/clustering'
-    acc = pd.read_csv(get_abspath('{}_acc.csv'.format(name), resdir))
-    adjmi = pd.read_csv(get_abspath('{}_adjmi.csv'.format(name), resdir))
+    metrics = pd.read_csv(get_abspath('{}_metrics.csv'.format(name), resdir))
 
     # get figure and axes
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(9, 4))
 
     # plot accuracy
-    k = acc['k']
-    km = acc['K-Means']
-    gmm = acc['GMM']
+    k = metrics['k']
+    km = metrics['km_acc']
+    gmm = metrics['gmm_acc']
     ax1.plot(k, km, marker='o', markersize=5, color='b', label='K-Means')
     ax1.plot(k, gmm, marker='o', markersize=5, color='g', label='GMM')
     ax1.set_title('Accuracy Score ({})'.format(name))
@@ -187,8 +171,8 @@ def generate_validation_plots(name):
     ax1.legend(loc='best')
 
     # plot adjusted mutual info
-    km = adjmi['K-Means']
-    gmm = adjmi['GMM']
+    km = metrics['km_adjmi']
+    gmm = metrics['gmm_adjmi']
     ax2.plot(k, km, marker='o', markersize=5, color='r', label='K-Means')
     ax2.plot(k, gmm, marker='o', markersize=5, color='k', label='GMM')
     ax2.set_title('Adjusted Mutual Info ({})'.format(name))
@@ -206,13 +190,12 @@ def generate_validation_plots(name):
     plt.subplots_adjust(wspace=0.3)
 
     # save figure
-    plotdir = 'plots/clustering'
-    plotpath = get_abspath('{}_validation.png'.format(name), plotdir)
+    plotpath = get_abspath('{}_validation.png'.format(name), pdir)
     plt.savefig(plotpath)
     plt.clf()
 
 
-def generate_cluster_data(X, y, name, km_k, gmm_k, perplexity=30):
+def get_cluster_data(X, y, name, km_k, gmm_k, rdir, perplexity=30):
     """Generates 2D dataset that contains cluster labels for K-Means and GMM,
     as well as the class labels for the given dataset.
 
@@ -223,6 +206,7 @@ def generate_cluster_data(X, y, name, km_k, gmm_k, perplexity=30):
         perplexity (int): Perplexity parameter for t-SNE.
         km_k (int): Number of clusters for K-Means.
         gmm_k (int): Number of components for GMM.
+        rdir (str): Folder to save results CSV.
 
     """
     # generate 2D X dataset
@@ -241,15 +225,16 @@ def generate_cluster_data(X, y, name, km_k, gmm_k, perplexity=30):
 
     # save as CSV
     filename = '{}_2D.csv'.format(name)
-    save_dataset(df, filename, sep=',', subdir='data/clustering', header=True)
+    save_dataset(df, filename, sep=',', subdir=rdir, header=True)
 
 
-def generate_cluster_plots(df, name):
+def generate_cluster_plots(df, name, pdir):
     """Visualizes clusters using pre-processed 2D dataset.
 
     Args:
         df (Pandas.DataFrame): Dataset containing attributes and labels.
         name (str): Dataset name.
+        pdir (str): Output folder for plots.
 
     """
     # get cols
@@ -294,7 +279,7 @@ def generate_cluster_plots(df, name):
     plt.subplots_adjust(wspace=0.3)
 
     # save figure
-    plotdir = 'plots/clustering'
+    plotdir = pdir
     plotpath = get_abspath('{}_clusters.png'.format(name), plotdir)
     plt.savefig(plotpath)
     plt.clf()
@@ -308,6 +293,8 @@ def main():
     seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
     seismic = np.loadtxt(seismicpath, delimiter=',')
+    rdir = 'results/clustering'
+    pdir = 'plots/clustering'
 
     # split data into X and y
     wX = wine[:, :-1]
@@ -317,27 +304,26 @@ def main():
 
     # run clustering experiments
     clusters = [2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 18, 20, 25, 30, 45, 80, 120]
-    clustering_experiment(wX, wY, 'winequality', clusters)
-    clustering_experiment(sX, sY, 'seismic-bumps', clusters)
+    clustering_experiment(wX, wY, 'winequality', clusters, rdir=rdir)
+    clustering_experiment(sX, sY, 'seismic-bumps', clusters, rdir=rdir)
 
     # generate 2D data for cluster visualization
-    # generate_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12)
-    # generate_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15)
+    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12, rdir=rdir)
+    get_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15, rdir=rdir)
 
     # generate component plots (metrics to choose size of k)
-    generate_component_plots(name='winequality')
-    generate_component_plots(name='seismic-bumps')
+    generate_component_plots(name='winequality', rdir=rdir, pdir=pdir)
+    generate_component_plots(name='seismic-bumps', rdir=rdir, pdir=pdir)
+
+    # # generate validation plots (relative performance of clustering)
+    generate_validation_plots(name='winequality', rdir=rdir, pdir=pdir)
+    generate_validation_plots(name='seismic-bumps', rdir=rdir, pdir=pdir)
 
     # generate validation plots (relative performance of clustering)
-    generate_validation_plots(name='winequality')
-    generate_validation_plots(name='seismic-bumps')
-
-    # generate validation plots (relative performance of clustering)
-    datadir = 'data/clustering'
-    df_wine = pd.read_csv(get_abspath('winequality_2D.csv', datadir))
-    df_seismic = pd.read_csv(get_abspath('seismic-bumps_2D.csv', datadir))
-    generate_cluster_plots(df_wine, name='winequality')
-    generate_cluster_plots(df_seismic, name='seismic-bumps')
+    df_wine = pd.read_csv(get_abspath('winequality_2D.csv', rdir))
+    df_seismic = pd.read_csv(get_abspath('seismic-bumps_2D.csv', rdir))
+    generate_cluster_plots(df_wine, name='winequality', pdir=pdir)
+    generate_cluster_plots(df_seismic, name='seismic-bumps', pdir=pdir)
 
 
 if __name__ == '__main__':

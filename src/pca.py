@@ -1,11 +1,9 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
+from clustering import get_cluster_data, generate_validation_plots
+from clustering import clustering_experiment, generate_cluster_plots
+from clustering import generate_component_plots
 from helpers import get_abspath, save_array
-from matplotlib import cm
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import GridSearchCV
 from sklearn.decomposition import PCA
 import matplotlib
 matplotlib.use('agg')
@@ -19,6 +17,7 @@ def pca_experiment(X, name, dims, evp):
 
     Args:
         X (Numpy.Array): Attributes.
+        y (Numpy.Array): Labels.
         name (str): Dataset name.
         dims (int): Number of components.
         evp (float): Explained variance percentage threshold.
@@ -37,7 +36,7 @@ def pca_experiment(X, name, dims, evp):
     evars = pd.concat((ev, evr, evrc), axis=1)
 
     # save results as CSV
-    resdir = 'results/DR/PCA'
+    resdir = 'results/PCA'
     evfile = get_abspath('{}_variances.csv'.format(name), resdir)
     resfile = get_abspath('{}_projected.csv'.format(name), resdir)
     save_array(array=res, filename=resfile, subdir=resdir)
@@ -53,7 +52,7 @@ def generate_variance_plot(name, evp):
         evp (float): Explained variance percentage threshold.
 
     """
-    resdir = 'results/DR/PCA'
+    resdir = 'results/PCA'
     df = pd.read_csv(get_abspath('{}_variances.csv'.format(name), resdir))
 
     # get figure and axes
@@ -80,10 +79,52 @@ def generate_variance_plot(name, evp):
             item.set_fontsize(8)
 
     # save figure
-    plotdir = 'plots/DR/PCA'
+    plotdir = 'plots/PCA'
     plotpath = get_abspath('{}_explvar.png'.format(name), plotdir)
     plt.savefig(plotpath)
     plt.clf()
+
+
+def run_clustering(wY, sY, rdir, pdir):
+    """Re-run clustering experiments on datasets after dimensionality
+    reduction.
+
+    Args:
+        wY (Numpy.Array): Labels for winequality.
+        sY (Numpy.Array): Labels for seismic-bumps.
+        rdir (str): Input file directory.
+        pdir (str): Output directory.
+
+    """
+    winepath = get_abspath('winequality_projected.csv', rdir)
+    seismicpath = get_abspath('seismic-bumps_projected.csv', rdir)
+    wX = np.loadtxt(winepath, delimiter=',')
+    sX = np.loadtxt(seismicpath, delimiter=',')
+    rdir = rdir + '/clustering'
+    pdir = pdir + '/clustering'
+
+    # re-run clustering experiments after applying PCA
+    clusters = [2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 18, 20, 25, 30, 45, 80, 120]
+    clustering_experiment(wX, wY, 'winequality', clusters, rdir=rdir)
+    clustering_experiment(sX, sY, 'seismic-bumps', clusters, rdir=rdir)
+
+    # generate 2D data for cluster visualization
+    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12, rdir=rdir)
+    get_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15, rdir=rdir)
+
+    # generate component plots (metrics to choose size of k)
+    generate_component_plots(name='winequality', rdir=rdir, pdir=pdir)
+    generate_component_plots(name='seismic-bumps', rdir=rdir, pdir=pdir)
+
+    # # generate validation plots (relative performance of clustering)
+    generate_validation_plots(name='winequality', rdir=rdir, pdir=pdir)
+    generate_validation_plots(name='seismic-bumps', rdir=rdir, pdir=pdir)
+
+    # generate validation plots (relative performance of clustering)
+    df_wine = pd.read_csv(get_abspath('winequality_2D.csv', rdir))
+    df_seismic = pd.read_csv(get_abspath('seismic-bumps_2D.csv', rdir))
+    generate_cluster_plots(df_wine, name='winequality', pdir=pdir)
+    generate_cluster_plots(df_seismic, name='seismic-bumps', pdir=pdir)
 
 
 def main():
@@ -95,6 +136,9 @@ def main():
     wine = np.loadtxt(winepath, delimiter=',')
     seismic = np.loadtxt(seismicpath, delimiter=',')
 
+    # set explained variance threshold
+    evp = 0.85
+
     # split data into X and y
     wX = wine[:, :-1]
     wY = wine[:, -1]
@@ -102,7 +146,8 @@ def main():
     sY = seismic[:, -1]
     wDims = wX.shape[1]
     sDims = sX.shape[1]
-    evp = 0.85
+    rdir = 'results/PCA'
+    pdir = 'plots/PCA'
 
     # generate PCA results
     pca_experiment(wX, 'winequality', dims=wDims, evp=evp)
@@ -111,6 +156,9 @@ def main():
     # generate PCA explained variance plots
     generate_variance_plot('winequality', evp=evp)
     generate_variance_plot('seismic-bumps', evp=evp)
+
+    # re-run clustering experiments
+    run_clustering(wY, sY, rdir, pdir)
 
 
 if __name__ == '__main__':
