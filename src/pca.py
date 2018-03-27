@@ -21,8 +21,7 @@ def pca_experiment(X, name, dims, evp):
         name (str): Dataset name.
         dims (int): Number of components.
         evp (float): Explained variance percentage threshold.
-    Returns:
-        res (Pandas.DataFrame)
+
     """
     pca = PCA(random_state=0, svd_solver='full', n_components=dims)
     comps = pca.fit_transform(X)  # get principal components
