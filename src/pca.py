@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import timeit
 from clustering import get_cluster_data, generate_validation_plots
 from clustering import clustering_experiment, generate_cluster_plots
 from clustering import generate_component_plots
@@ -17,7 +18,6 @@ def pca_experiment(X, name, dims, evp):
 
     Args:
         X (Numpy.Array): Attributes.
-        y (Numpy.Array): Labels.
         name (str): Dataset name.
         dims (int): Number of components.
         evp (float): Explained variance percentage threshold.
@@ -39,7 +39,7 @@ def pca_experiment(X, name, dims, evp):
     evfile = get_abspath('{}_variances.csv'.format(name), resdir)
     resfile = get_abspath('{}_projected.csv'.format(name), resdir)
     save_array(array=res, filename=resfile, subdir=resdir)
-    evars.to_csv(evfile, index_label='comp_no')
+    evars.to_csv(evfile, index_label='n')
 
 
 def generate_variance_plot(name, evp):
@@ -58,7 +58,7 @@ def generate_variance_plot(name, evp):
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 3))
 
     # plot explained variance and cumulative explain variance ratios
-    x = df['comp_no']
+    x = df['n']
     evr = df['evr']
     evr_cum = df['evr_cum']
     ax.plot(x, evr, marker='.', color='b', label='EVR')
@@ -74,7 +74,7 @@ def generate_variance_plot(name, evp):
     fig.tight_layout()
     for ax in fig.axes:
         ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
-        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
+        for item in ax_items + ax.get_xticklabels() + ax.get_yticklabels():
             item.set_fontsize(8)
 
     # save figure
@@ -108,7 +108,7 @@ def run_clustering(wY, sY, rdir, pdir):
     clustering_experiment(sX, sY, 'seismic-bumps', clusters, rdir=rdir)
 
     # generate 2D data for cluster visualization
-    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12, rdir=rdir)
+    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=15, rdir=rdir)
     get_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15, rdir=rdir)
 
     # generate component plots (metrics to choose size of k)
@@ -127,9 +127,12 @@ def run_clustering(wY, sY, rdir, pdir):
 
 
 def main():
-    """Run code to generate PCA results.
+    """Run code to generate results.
 
     """
+    print 'Running PCA experiments'
+    start_time = timeit.default_timer()
+
     winepath = get_abspath('winequality.csv', 'data/experiments')
     seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
@@ -159,6 +162,10 @@ def main():
     # re-run clustering experiments
     run_clustering(wY, sY, rdir, pdir)
 
+    # calculate and print running time
+    end_time = timeit.default_timer()
+    elapsed = end_time - start_time
+    print "Completed PCA experiments in {} seconds".format(elapsed)
 
 if __name__ == '__main__':
     main()

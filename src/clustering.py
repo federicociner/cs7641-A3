@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import timeit
 from helpers import cluster_acc, get_abspath, save_dataset
 from sklearn.metrics import silhouette_score
 from sklearn.manifold import TSNE
@@ -132,7 +133,7 @@ def generate_component_plots(name, rdir, pdir):
     fig.tight_layout()
     for ax in fig.axes:
         ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
-        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
+        for item in ax_items + ax.get_xticklabels() + ax.get_yticklabels():
             item.set_fontsize(8)
     plt.subplots_adjust(wspace=0.3)
 
@@ -152,8 +153,7 @@ def generate_validation_plots(name, rdir, pdir):
         pdir (str): Output directory.
 
     """
-    resdir = 'results/clustering'
-    metrics = pd.read_csv(get_abspath('{}_metrics.csv'.format(name), resdir))
+    metrics = pd.read_csv(get_abspath('{}_metrics.csv'.format(name), rdir))
 
     # get figure and axes
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(9, 4))
@@ -185,7 +185,7 @@ def generate_validation_plots(name, rdir, pdir):
     fig.tight_layout()
     for ax in fig.axes:
         ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
-        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
+        for item in ax_items + ax.get_xticklabels() + ax.get_yticklabels():
             item.set_fontsize(8)
     plt.subplots_adjust(wspace=0.3)
 
@@ -274,7 +274,7 @@ def generate_cluster_plots(df, name, pdir):
     fig.tight_layout()
     for ax in fig.axes:
         ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
-        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
+        for item in ax_items + ax.get_xticklabels() + ax.get_yticklabels():
             item.set_fontsize(8)
     plt.subplots_adjust(wspace=0.3)
 
@@ -289,6 +289,9 @@ def main():
     """Run code to generate clustering results.
 
     """
+    print 'Running base clustering experiments'
+    start_time = timeit.default_timer()
+
     winepath = get_abspath('winequality.csv', 'data/experiments')
     seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
@@ -296,7 +299,7 @@ def main():
     rdir = 'results/clustering'
     pdir = 'plots/clustering'
 
-    # split data into X and y
+    # split data into X and yreduced
     wX = wine[:, :-1]
     wY = wine[:, -1]
     sX = seismic[:, :-1]
@@ -325,6 +328,10 @@ def main():
     generate_cluster_plots(df_wine, name='winequality', pdir=pdir)
     generate_cluster_plots(df_seismic, name='seismic-bumps', pdir=pdir)
 
+    # calculate and print running time
+    end_time = timeit.default_timer()
+    elapsed = end_time - start_time
+    print "Completed clustering experiments in {} seconds".format(elapsed)
 
 if __name__ == '__main__':
     main()

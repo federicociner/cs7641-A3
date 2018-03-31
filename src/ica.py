@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import timeit
 from clustering import get_cluster_data, generate_validation_plots
 from clustering import clustering_experiment, generate_cluster_plots
 from clustering import generate_component_plots
@@ -17,7 +18,6 @@ def ica_experiment(X, name, dims):
 
     Args:
         X (Numpy.Array): Attributes.
-        y (Numpy.Array): Labels.
         name (str): Dataset name.
         dims (list(int)): List of component number values.
 
@@ -38,7 +38,7 @@ def ica_experiment(X, name, dims):
     # save results as CSV
     resdir = 'results/ICA'
     resfile = get_abspath('{}_kurtosis.csv'.format(name), resdir)
-    res.to_csv(resfile, index_label='comp_no')
+    res.to_csv(resfile, index_label='n')
 
 
 def save_ica_results(X, name, dims):
@@ -74,7 +74,7 @@ def generate_kurtosis_plot(name):
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 3))
 
     # plot explained variance and cumulative explain variance ratios
-    x = df['comp_no']
+    x = df['n']
     kurt = df['kurtosis']
     ax.plot(x, kurt, marker='.', color='g')
     ax.set_title('ICA Mean Kurtosis ({})'.format(name))
@@ -86,7 +86,7 @@ def generate_kurtosis_plot(name):
     fig.tight_layout()
     for ax in fig.axes:
         ax_items = [ax.title, ax.xaxis.label, ax.yaxis.label]
-        for item in (ax_items + ax.get_xticklabels() + ax.get_yticklabels()):
+        for item in ax_items + ax.get_xticklabels() + ax.get_yticklabels():
             item.set_fontsize(8)
 
     # save figure
@@ -120,7 +120,7 @@ def run_clustering(wY, sY, rdir, pdir):
     clustering_experiment(sX, sY, 'seismic-bumps', clusters, rdir=rdir)
 
     # generate 2D data for cluster visualization
-    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12, rdir=rdir)
+    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=15, rdir=rdir)
     get_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15, rdir=rdir)
 
     # generate component plots (metrics to choose size of k)
@@ -139,9 +139,12 @@ def run_clustering(wY, sY, rdir, pdir):
 
 
 def main():
-    """Run code to generate PCA results.
+    """Run code to generate results.
 
     """
+    print 'Running ICA experiments'
+    start_time = timeit.default_timer()
+
     winepath = get_abspath('winequality.csv', 'data/experiments')
     seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
@@ -157,11 +160,11 @@ def main():
     rdir = 'results/ICA'
     pdir = 'plots/ICA'
 
-    # generate PCA results
+    # generate ICA results
     ica_experiment(wX, 'winequality', dims=range(1, wDims + 1))
     ica_experiment(sX, 'seismic-bumps', dims=range(1, sDims + 1))
 
-    # generate PCA explained variance plots
+    # generate ICA kurtosis plots
     generate_kurtosis_plot('winequality')
     generate_kurtosis_plot('seismic-bumps')
 
@@ -172,6 +175,10 @@ def main():
     # re-run clustering experiments
     run_clustering(wY, sY, rdir, pdir)
 
+    # calculate and print running time
+    end_time = timeit.default_timer()
+    elapsed = end_time - start_time
+    print "Completed ICA experiments in {} seconds".format(elapsed)
 
 if __name__ == '__main__':
     main()

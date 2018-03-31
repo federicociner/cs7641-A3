@@ -1,7 +1,10 @@
 import os
-import numpy as np
 from collections import Counter
+import numpy as np
+import scipy.sparse as sps
+from scipy.linalg import pinv
 from sklearn.metrics import accuracy_score
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.utils.class_weight import compute_sample_weight
 
 
@@ -67,7 +70,7 @@ def balanced_accuracy(labels, predictions):
 
 
 def cluster_acc(Y, clusterY):
-    """ Calculates accuracy of labels in each cluster by comparing to the
+    """Calculates accuracy of labels in each cluster by comparing to the
     actual Y labels.
 
     Args:
@@ -77,12 +80,48 @@ def cluster_acc(Y, clusterY):
         score (float): Accuracy score for given cluster labels.
 
     """
-    assert (Y.shape == clusterY.shape)
+    assert Y.shape == clusterY.shape
     pred = np.empty_like(Y)
     for label in set(clusterY):
         mask = clusterY == label
         sub = Y[mask]
         target = Counter(sub).most_common(1)[0][0]
         pred[mask] = target
-
     return balanced_accuracy(Y, pred)
+
+
+def reconstruction_error(projections, x):
+    """Calculates reconstruction error on a given set of projected data based
+    on the original dataset.
+
+    Args:
+        projections (Numpy.Array): Random matrix used for projections.
+        x (Numpy.Array): Original dataset.
+    Returns:
+        errors (Numpy.Array): Reconstruction error.
+
+    """
+    W = projections.components_
+    if sps.issparse(W):
+        W = W.todense()
+    p = pinv(W)
+    reconstructed = np.dot(np.dot(p, W), x.T).T  # Unproject projected data
+    errors = np.square(x - reconstructed)
+    return np.nanmean(errors)
+
+
+def pairwise_dist_corr(x1, x2):
+    """Calculates the pairwise distance correlation between two arrays.
+
+    Args:
+        x1 (Numpy.Array): First array.
+        x2 (Numpy.Array): Second array.
+    Returns:
+        Numpy.Array of pairwise distance correlations.
+
+    """
+    assert x1.shape[0] == x2.shape[0]
+
+    d1 = pairwise_distances(x1)
+    d2 = pairwise_distances(x2)
+    return np.corrcoef(d1.ravel(),d2.ravel())[0,1]
