@@ -60,20 +60,22 @@ def generate_fi_plot(name, theta):
     df = pd.read_csv(get_abspath('{}_fi.csv'.format(name), resdir))
 
     # get figure and axes
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 3))
+    fig, ax1 = plt.subplots(nrows=1, ncols=1, figsize=(5, 3))
 
     # plot explained variance and cumulative explain variance ratios
-    x = df['n']
-    evr = df['evr']
-    evr_cum = df['evr_cum']
-    ax.plot(x, evr, marker='.', color='b', label='EVR')
-    ax.plot(x, evr_cum, marker='.', color='g', label='Cumulative EVR')
-    ax.set_title('Explained Variance by PC ({})'.format(name))
-    ax.set_ylabel('Explained Variance')
-    ax.set_xlabel('Principal Component')
-    vmark = evr_cum.where(evr_cum > evp).idxmin() + 1
-    ax.axvline(x=vmark, linestyle='--', color='r')
-    ax.grid(color='grey', linestyle='dotted')
+    ax2 = ax1.twinx()
+    x = df['i']
+    fi = df['importance']
+    cumfi = df['cumulative']
+    ax1.bar(x, height=fi, color='b', tick_label=df['feature'], align='center')
+    ax2.plot(x, cumfi, color='r', label='Cumulative Info Gain')
+    ax1.set_title('Feature Importance ({})'.format(name))
+    ax1.set_ylabel('Gini Gain')
+    ax2.set_ylabel('Cumulative Gini Gain')
+    ax1.set_xlabel('Feature Index')
+    ax2.axhline(y=theta, linestyle='--', color='r')
+    ax1.grid(b=None)
+    ax2.grid(b=None)
 
     # change layout size, font size and width
     fig.tight_layout()
@@ -139,7 +141,7 @@ def main():
     start_time = timeit.default_timer()
 
     winepath = get_abspath('winequality.csv', 'data/experiments')
-    seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
+    seismicpath = get_abspath('seismic-bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
     seismic = np.loadtxt(seismicpath, delimiter=',')
 
@@ -161,8 +163,8 @@ def main():
     rf_experiment(sX, sY, 'seismic-bumps', theta=theta)
 
     # generate RF feature importance plots
-    # generate_fi_plot('winequality', evp=evp)
-    # generate_fi_plot('seismic-bumps', evp=evp)
+    generate_fi_plot('winequality', theta=theta)
+    generate_fi_plot('seismic-bumps', theta=theta)
 
     # re-run clustering experiments
     run_clustering(wY, sY, rdir, pdir)

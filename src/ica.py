@@ -146,7 +146,7 @@ def main():
     start_time = timeit.default_timer()
 
     winepath = get_abspath('winequality.csv', 'data/experiments')
-    seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
+    seismicpath = get_abspath('seismic-bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
     seismic = np.loadtxt(seismicpath, delimiter=',')
 

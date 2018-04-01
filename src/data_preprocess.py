@@ -111,7 +111,7 @@ def preprocess_seismic():
     data = np.concatenate((X_scaled, y[:, np.newaxis]), axis=1)
 
     # save to CSV
-    save_array(array=data, filename='seismic_bumps.csv', subdir=tdir)
+    save_array(array=data, filename='seismic-bumps.csv', subdir=tdir)
 
 
 def main():

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import timeit
-from helpers import cluster_acc, get_abspath, save_dataset
+from helpers import cluster_acc, get_abspath, save_dataset, save_array
 from sklearn.metrics import silhouette_score
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
@@ -284,6 +284,33 @@ def generate_cluster_plots(df, name, pdir):
     plt.savefig(plotpath)
     plt.clf()
 
+def nn_cluster_datasets(X, name, km_k, gmm_k):
+    """Generates datasets for ANN classification by appending cluster label to
+    original dataset.
+
+    Args:
+        X (Numpy.Array): Original attributes.
+        name (str): Dataset name.
+        km_k (int): Number of clusters for K-Means.
+        gmm_k (int): Number of components for GMM.
+
+    """
+    km = KMeans(random_state=0).set_params(n_clusters=km_k)
+    gmm = GMM(random_state=0).set_params(n_components=gmm_k)
+    km.fit(X)
+    gmm.fit(X)
+
+    # add cluster labels to original attributes
+    km_x = np.concatenate((X, km.labels_[:, None]), axis=1)
+    gmm_x = np.concatenate((X, gmm.predict(X)[:, None]), axis=1)
+
+    # save results
+    resdir = 'results/NN'
+    kmfile = get_abspath('{}_km_labels.csv'.format(name), resdir)
+    gmmfile = get_abspath('{}_gmm_labels.csv'.format(name), resdir)
+    save_array(array=km_x, filename=kmfile, subdir=resdir)
+    save_array(array=gmm_x, filename=gmmfile, subdir=resdir)
+
 
 def main():
     """Run code to generate clustering results.
@@ -293,7 +320,7 @@ def main():
     start_time = timeit.default_timer()
 
     winepath = get_abspath('winequality.csv', 'data/experiments')
-    seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
+    seismicpath = get_abspath('seismic-bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
     seismic = np.loadtxt(seismicpath, delimiter=',')
     rdir = 'results/clustering'
@@ -311,7 +338,7 @@ def main():
     clustering_experiment(sX, sY, 'seismic-bumps', clusters, rdir=rdir)
 
     # generate 2D data for cluster visualization
-    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=12, rdir=rdir)
+    get_cluster_data(wX, wY, 'winequality', km_k=15, gmm_k=15, rdir=rdir)
     get_cluster_data(sX, sY, 'seismic-bumps', km_k=20, gmm_k=15, rdir=rdir)
 
     # generate component plots (metrics to choose size of k)
@@ -327,6 +354,10 @@ def main():
     df_seismic = pd.read_csv(get_abspath('seismic-bumps_2D.csv', rdir))
     generate_cluster_plots(df_wine, name='winequality', pdir=pdir)
     generate_cluster_plots(df_seismic, name='seismic-bumps', pdir=pdir)
+
+    # generate neural network datasets with cluster labels
+    nn_cluster_datasets(wX, name='winequality', km_k=15, gmm_k=15)
+    nn_cluster_datasets(sX, name='seismic-bumps', km_k=20, gmm_k=15)
 
     # calculate and print running time
     end_time = timeit.default_timer()

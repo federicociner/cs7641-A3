@@ -134,7 +134,7 @@ def main():
     start_time = timeit.default_timer()
 
     winepath = get_abspath('winequality.csv', 'data/experiments')
-    seismicpath = get_abspath('seismic_bumps.csv', 'data/experiments')
+    seismicpath = get_abspath('seismic-bumps.csv', 'data/experiments')
     wine = np.loadtxt(winepath, delimiter=',')
     seismic = np.loadtxt(seismicpath, delimiter=',')
 
@@ -166,6 +166,7 @@ def main():
     end_time = timeit.default_timer()
     elapsed = end_time - start_time
     print "Completed PCA experiments in {} seconds".format(elapsed)
+
 
 if __name__ == '__main__':
     main()
