@@ -180,5 +180,6 @@ def main():
     elapsed = end_time - start_time
     print "Completed ICA experiments in {} seconds".format(elapsed)
 
+
 if __name__ == '__main__':
     main()

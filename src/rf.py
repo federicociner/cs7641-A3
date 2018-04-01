@@ -23,7 +23,8 @@ def rf_experiment(X, y, name, theta):
         theta (float): Min cumulative information gain threshold.
 
     """
-    rfc = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=0)
+    rfc = RandomForestClassifier(
+        n_estimators=100, class_weight='balanced', random_state=0)
     fi = rfc.fit(X, y).feature_importances_
 
     # get feature importance and sort by value in descending order
@@ -173,6 +174,7 @@ def main():
     end_time = timeit.default_timer()
     elapsed = end_time - start_time
     print "Completed RF experiments in {} seconds".format(elapsed)
+
 
 if __name__ == '__main__':
     main()

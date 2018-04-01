@@ -284,6 +284,7 @@ def generate_cluster_plots(df, name, pdir):
     plt.savefig(plotpath)
     plt.clf()
 
+
 def nn_cluster_datasets(X, name, km_k, gmm_k):
     """Generates datasets for ANN classification by appending cluster label to
     original dataset.
@@ -363,6 +364,7 @@ def main():
     end_time = timeit.default_timer()
     elapsed = end_time - start_time
     print "Completed clustering experiments in {} seconds".format(elapsed)
+
 
 if __name__ == '__main__':
     main()
