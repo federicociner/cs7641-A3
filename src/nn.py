@@ -1,18 +1,9 @@
 import timeit
 import os
-import pandas as pd
 import numpy as np
-from clustering import get_cluster_data, generate_validation_plots
-from clustering import clustering_experiment, generate_cluster_plots
-from clustering import generate_component_plots
-from helpers import get_abspath, save_array, balanced_accuracy
+from helpers import get_abspath, balanced_accuracy
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-import seaborn
 
 
 def create_ann(name):
